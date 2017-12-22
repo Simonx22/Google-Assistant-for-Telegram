@@ -19,6 +19,7 @@ import logging
 import json
 import telegram
 from telegram.error import NetworkError, Unauthorized
+from telegram.ext import MessageHandler, Filters
 from time import sleep
 
 import click
@@ -148,6 +149,8 @@ def main(api_endpoint, credentials,
 
     global update_id
 
+    	
+	
     # Telegram
     """Run the bot."""
     # Telegram Bot Authorization Token
@@ -181,13 +184,16 @@ def main(api_endpoint, credentials,
         except IndexError:
             update_id = None
 
-    # weird stuff for telegram
+    # weird stuff
         for update in bot.get_updates(offset=update_id, timeout=10):
             update_id = update.update_id + 1
 
-            if update.message:
-                display_text = assistant.assist(text_query=update.message.text)
-                update.message.reply_text(display_text)
+            #if update.message:
+            #    display_text = assistant.assist(text_query=update.message.text)
+            #    update.message.reply_text(display_text)
+				
+def echo(bot, update):
+    bot.send_message(chat_id=update.message.chat_id, text=update.message.text)
 
 if __name__ == '__main__':
     main()
