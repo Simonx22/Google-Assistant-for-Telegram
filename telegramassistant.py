@@ -44,6 +44,8 @@ except SystemError:
 ASSISTANT_API_ENDPOINT = 'embeddedassistant.googleapis.com'
 DEFAULT_GRPC_DEADLINE = 60 * 3 + 5
 
+assistant = None
+
 class SampleTextAssistant(object):
     """Sample Assistant that supports text based conversations.
 
@@ -174,8 +176,7 @@ def main(api_endpoint, credentials,
         credentials, http_request, api_endpoint)
     logging.info('Connecting to %s', api_endpoint)
 
-    with SampleTextAssistant(lang, device_model_id, device_id,
-                             grpc_channel, grpc_deadline) as assistant:
+    assistant =  SampleTextAssistant(lang, device_model_id, device_id, grpc_channel, grpc_deadline)
 
     # get the first pending update_id, this is so we can skip over it in case
     # we get an "Unauthorized" exception.
@@ -183,17 +184,10 @@ def main(api_endpoint, credentials,
             update_id = bot.get_updates()[0].update_id
         except IndexError:
             update_id = None
-
-    # weird stuff
-        for update in bot.get_updates(offset=update_id, timeout=10):
-            update_id = update.update_id + 1
-
-            #if update.message:
-            #    display_text = assistant.assist(text_query=update.message.text)
-            #    update.message.reply_text(display_text)
 				
 def echo(bot, update):
-    bot.send_message(chat_id=update.message.chat_id, text=update.message.text)
+    display_text = assistant.assist(text_query=update.message.text)
+    update.message.reply_text(display_text)
 
 if __name__ == '__main__':
     main()
