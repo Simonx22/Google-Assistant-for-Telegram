@@ -150,8 +150,6 @@ def main(api_endpoint, credentials,
     logging.basicConfig(level=logging.DEBUG if verbose else logging.INFO)
 
     global update_id
-
-    	
 	
     # Telegram
     """Run the bot."""
@@ -170,6 +168,9 @@ def main(api_endpoint, credentials,
         logging.error('Run google-oauthlib-tool to initialize '
                       'new OAuth 2.0 credentials.')
         return
+
+    echo_handler = MessageHandler(Filters.text, echo)
+    dispatcher.add_handler(echo_handler)		
 
     # Create an authorized gRPC channel.
     grpc_channel = google.auth.transport.grpc.secure_authorized_channel(
