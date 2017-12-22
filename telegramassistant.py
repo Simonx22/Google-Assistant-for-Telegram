@@ -19,7 +19,7 @@ import logging
 import json
 import telegram
 from telegram.error import NetworkError, Unauthorized
-from telegram.ext import MessageHandler, Filters
+from telegram.ext import MessageHandler, Filters, Updater
 from time import sleep
 
 import click
@@ -154,7 +154,7 @@ def main(api_endpoint, credentials,
     # Telegram
     """Run the bot."""
     # Telegram Bot Authorization Token
-    bot = telegram.Bot('TOKEN')
+    updater = Updater(token='TOKEN')
 
     # Load OAuth 2.0 credentials.
     try:
@@ -168,7 +168,7 @@ def main(api_endpoint, credentials,
         logging.error('Run google-oauthlib-tool to initialize '
                       'new OAuth 2.0 credentials.')
         return
-
+    dispatcher = updater.dispatcher
     echo_handler = MessageHandler(Filters.text, echo)
     dispatcher.add_handler(echo_handler)		
 
@@ -181,12 +181,12 @@ def main(api_endpoint, credentials,
 
     # get the first pending update_id, this is so we can skip over it in case
     # we get an "Unauthorized" exception.
-    try:
-        update_id = bot.get_updates()[0].update_id
-    except IndexError:
-        update_id = None
+    #try:
+    #    update_id = updater.get_updates()[0].update_id
+    #except IndexError:
+    #    update_id = None
 				
-def echo(bot, update):
+def echo(update):
     display_text = assistant.assist(text_query=update.message.text)
     update.message.reply_text(display_text)
 
