@@ -186,7 +186,7 @@ def main(api_endpoint, credentials,
     #except IndexError:
     #    update_id = None
 				
-def echo(update):
+def echo(bot, update):
     display_text = assistant.assist(text_query=update.message.text)
     update.message.reply_text(display_text)
 
