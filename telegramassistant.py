@@ -180,10 +180,10 @@ def main(api_endpoint, credentials,
 
     # get the first pending update_id, this is so we can skip over it in case
     # we get an "Unauthorized" exception.
-        try:
-            update_id = bot.get_updates()[0].update_id
-        except IndexError:
-            update_id = None
+    try:
+        update_id = bot.get_updates()[0].update_id
+    except IndexError:
+        update_id = None
 				
 def echo(bot, update):
     display_text = assistant.assist(text_query=update.message.text)
