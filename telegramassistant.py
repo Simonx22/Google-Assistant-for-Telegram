@@ -179,6 +179,7 @@ def main(api_endpoint, credentials,
 
     assistant =  SampleTextAssistant(lang, device_model_id, device_id, grpc_channel, grpc_deadline)
 
+    updater.idle()
     # get the first pending update_id, this is so we can skip over it in case
     # we get an "Unauthorized" exception.
     #try:
