@@ -185,9 +185,9 @@ def main(api_endpoint, credentials,
         for update in bot.get_updates(offset=update_id, timeout=10):
             update_id = update.update_id + 1
 
-        if update.message:
-            display_text = assistant.assist(text_query=update.message.text)
-            update.message.reply_text(display_text)
+            if update.message:
+                display_text = assistant.assist(text_query=update.message.text)
+                update.message.reply_text(display_text)
 
 if __name__ == '__main__':
     main()
