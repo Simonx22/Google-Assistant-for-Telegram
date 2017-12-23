@@ -114,6 +114,11 @@ class SampleTextAssistant(object):
                 display_text = resp.dialog_state_out.supplemental_display_text
         return display_text
 
+def echo(bot, update):
+    display_text = assistant.assist(text_query=update.message.text)
+    update.message.reply_text(display_text)
+    #bot.send_message(chat_id=update.message.chat_id, text=update.message.text)
+    #print(update.message.text)
 
 @click.command()
 @click.option('--api-endpoint', default=ASSISTANT_API_ENDPOINT,
@@ -179,6 +184,7 @@ def main(api_endpoint, credentials,
 
     assistant =  SampleTextAssistant(lang, device_model_id, device_id, grpc_channel, grpc_deadline)
 
+    updater.start_polling()
     updater.idle()
     # get the first pending update_id, this is so we can skip over it in case
     # we get an "Unauthorized" exception.
@@ -187,9 +193,10 @@ def main(api_endpoint, credentials,
     #except IndexError:
     #    update_id = None
 				
-def echo(bot, update):
-    display_text = assistant.assist(text_query=update.message.text)
-    update.message.reply_text(display_text)
+#def echo(bot, update):
+#    print(update.message.text)
+#    display_text = assistant.assist(text_query=update.message.text)
+#    update.message.reply_text(display_text)
 
 if __name__ == '__main__':
     main()
