@@ -115,10 +115,11 @@ class SampleTextAssistant(object):
         return display_text
 
 def echo(bot, update):
-    display_text = assistant.assist(text_query=update.message.text)
-    update.message.reply_text(display_text)
-    #bot.send_message(chat_id=update.message.chat_id, text=update.message.text)
-    #print(update.message.text)
+    if update.message.from_user.id != int(YOUR_ID):
+        update.message.reply_text('unauthorized')
+    else:
+        display_text = assistant.assist(text_query=update.message.text)
+        update.message.reply_text(display_text)
 
 @click.command()
 @click.option('--api-endpoint', default=ASSISTANT_API_ENDPOINT,
@@ -159,7 +160,7 @@ def main(api_endpoint, credentials,
     # Telegram
     """Run the bot."""
     # Telegram Bot Authorization Token
-    updater = Updater(token='TOKEN')
+    updater = Updater(token='YOUR_TOKEN')
 
     # Load OAuth 2.0 credentials.
     try:
