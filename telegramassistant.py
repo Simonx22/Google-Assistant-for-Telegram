@@ -44,7 +44,7 @@ except SystemError:
 ASSISTANT_API_ENDPOINT = 'embeddedassistant.googleapis.com'
 DEFAULT_GRPC_DEADLINE = 60 * 3 + 5
 
-assistant = None
+#assistant = None
 
 class SampleTextAssistant(object):
     """Sample Assistant that supports text based conversations.
@@ -182,7 +182,8 @@ def main(api_endpoint, credentials,
         credentials, http_request, api_endpoint)
     logging.info('Connecting to %s', api_endpoint)
 
-    assistant =  SampleTextAssistant(lang, device_model_id, device_id, grpc_channel, grpc_deadline)
+    global assistant
+    assistant = SampleTextAssistant(lang, device_model_id, device_id, grpc_channel, grpc_deadline)
 
     updater.start_polling()
     updater.idle()
