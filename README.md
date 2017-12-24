@@ -1,3 +1,5 @@
+![image](https://i.imgur.com/MIMRzZ1.png)
+
 # What is this?
 This is the Google Assistant for Telegram. It's using the [Google Assistant SDK](https://github.com/googlesamples/assistant-sdk-python) 
 
