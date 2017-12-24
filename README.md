@@ -1,5 +1,3 @@
-![image](https://i.imgur.com/MIMRzZ1.png)
-
 # What is this?
 This is the Google Assistant for Telegram. It's using the [Google Assistant SDK](https://github.com/googlesamples/assistant-sdk-python) 
 
@@ -18,3 +16,6 @@ Simply run ```python3 telegramassistant.py --device-id YOUR_DEVICE_ID --device-m
 Make sure to replace ```YOUR_DEVICE_ID``` and ```YOUR_MODEL_ID``` with your own. It will not work without it.
 
 ## Please report any issues and feel free to ask me questions if you didn't understand something correctly.
+
+# Screenshot
+![image](https://i.imgur.com/MIMRzZ1.png)
