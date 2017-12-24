@@ -1,5 +1,5 @@
 # What is this?
-This is the Google Assistant for Telegram. It's using the [Google Assistant SDK](https://github.com/googlesamples/assistant-sdk-python) 
+This is the Google Assistant for Telegram. It's using the [Google Assistant SDK](https://github.com/googlesamples/assistant-sdk-python).
 
 # What do I need?
 - [a Telegram bot token](https://core.telegram.org/bots#3-how-do-i-create-a-bot)
