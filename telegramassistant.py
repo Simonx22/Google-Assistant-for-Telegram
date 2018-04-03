@@ -41,8 +41,8 @@ except (SystemError, ImportError):
 ASSISTANT_API_ENDPOINT = 'embeddedassistant.googleapis.com'
 DEFAULT_GRPC_DEADLINE = 60 * 3 + 5
 BOT_TOKEN = os.environ.get('BOT_TOKEN')
-GROUP_IDS = map(int, os.environ.get('GROUP_IDS').split(','))
-USER_IDS = map(int, os.environ.get('USER_ID').split(','))
+GROUP_IDS = list(map(int, os.environ.get('GROUP_IDS').split(',')))
+USER_IDS = list(map(int, os.environ.get('USER_ID').split(',')))
 DEVICE_MODEL_ID = os.environ.get('DEVICE_MODEL_ID')
 DEVICE_ID = os.environ.get('DEVICE_ID')
 
@@ -125,7 +125,7 @@ def assist(bot, update):
             or message.text.startswith('@%s' % bot.username)):
         # Strip first word (the mention) from message text.
         message_tokens = message.text.split(' ', 1)
-        if message_tokens.length > 1:
+        if len(message_tokens) > 1:
             message_text = message_tokens[1]
             # Get response from Google Assistant API.
             display_text = assistant.assist(text_query=message_text)
