@@ -32,6 +32,12 @@ from google.assistant.embedded.v1alpha2 import (
     embedded_assistant_pb2_grpc
 )
 
+ASSISTANT_API_ENDPOINT = 'embeddedassistant.googleapis.com'
+DEFAULT_GRPC_DEADLINE = 60 * 3 + 5
+BOT_TOKEN = os.environ.get('BOT_TOKEN')
+USER_ID = int(os.environ.get('USER_ID'))
+
+
 update_id = None
 
 try:
@@ -40,9 +46,6 @@ try:
     )
 except SystemError:
     import assistant_helpers
-
-ASSISTANT_API_ENDPOINT = 'embeddedassistant.googleapis.com'
-DEFAULT_GRPC_DEADLINE = 60 * 3 + 5
 
 #assistant = None
 
@@ -115,7 +118,7 @@ class SampleTextAssistant(object):
         return display_text
 
 def echo(bot, update):
-    if update.message.from_user.id != int(YOUR_ID):
+    if update.message.from_user.id != USER_ID:
         update.message.reply_text('unauthorized')
     else:
         display_text = assistant.assist(text_query=update.message.text)
@@ -160,7 +163,7 @@ def main(api_endpoint, credentials,
     # Telegram
     """Run the bot."""
     # Telegram Bot Authorization Token
-    updater = Updater(token='YOUR_TOKEN')
+    updater = Updater(BOT_TOKEN)
 
     # Load OAuth 2.0 credentials.
     try:
