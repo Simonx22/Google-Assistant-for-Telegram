@@ -17,35 +17,37 @@
 import os
 import logging
 import json
-import telegram
-from telegram.error import NetworkError, Unauthorized
-from telegram.ext import MessageHandler, Filters, Updater
 from time import sleep
 
 import click
 import google.auth.transport.grpc
 import google.auth.transport.requests
 import google.oauth2.credentials
-
 from google.assistant.embedded.v1alpha2 import embedded_assistant_pb2
 from google.assistant.embedded.v1alpha2 import embedded_assistant_pb2_grpc
+import telegram
+from telegram.error import NetworkError
+from telegram.error import Unauthorized
+from telegram.ext import MessageHandler
+from telegram.ext import Filters
+from telegram.ext import Updater
+
+try:
+    from . import assistant_helpers
+except (SystemError, ImportError):
+    import assistant_helpers
 
 
 ASSISTANT_API_ENDPOINT = 'embeddedassistant.googleapis.com'
 DEFAULT_GRPC_DEADLINE = 60 * 3 + 5
 BOT_TOKEN = os.environ.get('BOT_TOKEN')
 GROUP_IDS = map(int, os.environ.get('GROUP_IDS').split(','))
-USER_ID = int(os.environ.get('USER_ID'))
+USER_IDS = map(int, os.environ.get('USER_ID').split(','))
 DEVICE_MODEL_ID = os.environ.get('DEVICE_MODEL_ID')
 DEVICE_ID = os.environ.get('DEVICE_ID')
 
 
 update_id = None
-
-try:
-    from . import assistant_helpers
-except (SystemError, ImportError):
-    import assistant_helpers
 
 
 class SampleTextAssistant(object):
@@ -116,14 +118,24 @@ class SampleTextAssistant(object):
         return display_text
 
 
-def echo(bot, update):
+def assist(bot, update):
     message = update.message
-    display_text = assistant.assist(text_query=message.text)
-    if (message.chat_id not in GROUP_IDS
-            and message.from_user.id != USER_ID):
-        message.reply_text('Unauthorized')
-    elif display_text is not None:
-        update.message.reply_text(display_text)
+    # If in a group, only reply to mentions.
+    if (message.chat.type == 'private'
+            or message.text.startswith('@%s' % bot.username)):
+        # Strip first word (the mention) from message text.
+        message_tokens = message.text.split(' ', 1)
+        if message_tokens.length > 1:
+            message_text = message_tokens[1]
+            # Get response from Google Assistant API.
+            display_text = assistant.assist(text_query=message_text)
+            # Verify that the message is in an authorized chat or from an
+            # authorized user.
+            if (message.chat_id not in GROUP_IDS
+                    and message.from_user.id not in USER_IDS):
+                message.reply_text('Unauthorized')
+            elif display_text is not None:
+                update.message.reply_text(display_text)
 
 
 @click.command()
@@ -171,7 +183,7 @@ def main(api_endpoint, credentials_path, lang, verbose,
                       'new OAuth 2.0 credentials.')
         return
     dispatcher = updater.dispatcher
-    echo_handler = MessageHandler(Filters.text, echo)
+    echo_handler = MessageHandler(Filters.text, assist)
     dispatcher.add_handler(echo_handler)		
 
     # Create an authorized gRPC channel.
