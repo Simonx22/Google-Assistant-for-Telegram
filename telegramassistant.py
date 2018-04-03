@@ -27,15 +27,16 @@ import google.auth.transport.grpc
 import google.auth.transport.requests
 import google.oauth2.credentials
 
-from google.assistant.embedded.v1alpha2 import (
-    embedded_assistant_pb2,
-    embedded_assistant_pb2_grpc
-)
+from google.assistant.embedded.v1alpha2 import embedded_assistant_pb2
+from google.assistant.embedded.v1alpha2 import embedded_assistant_pb2_grpc
+
 
 ASSISTANT_API_ENDPOINT = 'embeddedassistant.googleapis.com'
 DEFAULT_GRPC_DEADLINE = 60 * 3 + 5
 BOT_TOKEN = os.environ.get('BOT_TOKEN')
 USER_ID = int(os.environ.get('USER_ID'))
+DEVICE_MODEL_ID = os.environ.get('DEVICE_MODEL_ID')
+DEVICE_ID = os.environ.get('DEVICE_ID')
 
 
 update_id = None
@@ -48,6 +49,7 @@ except SystemError:
     import assistant_helpers
 
 #assistant = None
+
 
 class SampleTextAssistant(object):
     """Sample Assistant that supports text based conversations.
@@ -98,7 +100,7 @@ class SampleTextAssistant(object):
                 dialog_state_in=dialog_state_in,
                 device_config=embedded_assistant_pb2.DeviceConfig(
                     device_id=self.device_id,
-                    device_model_id=self.device_model_id,
+                    device_model_id=DEVICE_MODEL_ID,
                 ),
                 text_query=text_query,
             )
@@ -117,6 +119,7 @@ class SampleTextAssistant(object):
                 display_text = resp.dialog_state_out.supplemental_display_text
         return display_text
 
+
 def echo(bot, update):
     display_text = assistant.assist(text_query=update.message.text)
     update.message.reply_text(display_text)
@@ -130,16 +133,6 @@ def echo(bot, update):
               default=os.path.join(click.get_app_dir('google-oauthlib-tool'),
                                    'credentials.json'),
               help='Path to read OAuth2 credentials.')
-@click.option('--device-model-id',
-              metavar='<device model id>',
-              help=(('Unique device model identifier, '
-                     'if not specifed, it is read from --device-config')))
-@click.option('--device-id',
-              metavar='<device id>',
-              help=(('Unique registered device instance identifier, '
-                     'if not specified, it is read from --device-config, '
-                     'if no device_config found: a new device is registered '
-                     'using a unique id and a new device config is saved')))
 @click.option('--lang', show_default=True,
               metavar='<language code>',
               default='en-US',
@@ -149,14 +142,15 @@ def echo(bot, update):
 @click.option('--grpc-deadline', default=DEFAULT_GRPC_DEADLINE,
               metavar='<grpc deadline>', show_default=True,
               help='gRPC deadline in seconds')
-def main(api_endpoint, credentials,
-         device_model_id, device_id, lang, verbose,
+
+
+def main(api_endpoint, credentials, lang, verbose,
          grpc_deadline, *args, **kwargs):
     # Setup logging.
     logging.basicConfig(level=logging.DEBUG if verbose else logging.INFO)
 
     global update_id
-	
+
     # Telegram
     """Run the bot."""
     # Telegram Bot Authorization Token
@@ -184,7 +178,12 @@ def main(api_endpoint, credentials,
     logging.info('Connecting to %s', api_endpoint)
 
     global assistant
-    assistant = SampleTextAssistant(lang, device_model_id, device_id, grpc_channel, grpc_deadline)
+    assistant = SampleTextAssistant(lang,
+            DEVICE_MODEL_ID,
+            DEVICE_ID,
+            grpc_channel,
+            grpc_deadline,
+            )
 
     updater.start_polling()
     updater.idle()
@@ -194,6 +193,7 @@ def main(api_endpoint, credentials,
     #    update_id = updater.get_updates()[0].update_id
     #except IndexError:
     #    update_id = None
+
 
 if __name__ == '__main__':
     main()
