@@ -118,11 +118,8 @@ class SampleTextAssistant(object):
         return display_text
 
 def echo(bot, update):
-    if update.message.from_user.id != USER_ID:
-        update.message.reply_text('unauthorized')
-    else:
-        display_text = assistant.assist(text_query=update.message.text)
-        update.message.reply_text(display_text)
+    display_text = assistant.assist(text_query=update.message.text)
+    update.message.reply_text(display_text)
 
 @click.command()
 @click.option('--api-endpoint', default=ASSISTANT_API_ENDPOINT,
@@ -197,11 +194,6 @@ def main(api_endpoint, credentials,
     #    update_id = updater.get_updates()[0].update_id
     #except IndexError:
     #    update_id = None
-				
-#def echo(bot, update):
-#    print(update.message.text)
-#    display_text = assistant.assist(text_query=update.message.text)
-#    update.message.reply_text(display_text)
 
 if __name__ == '__main__':
     main()
