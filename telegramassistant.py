@@ -34,6 +34,7 @@ from google.assistant.embedded.v1alpha2 import embedded_assistant_pb2_grpc
 ASSISTANT_API_ENDPOINT = 'embeddedassistant.googleapis.com'
 DEFAULT_GRPC_DEADLINE = 60 * 3 + 5
 BOT_TOKEN = os.environ.get('BOT_TOKEN')
+GROUP_IDS = map(int, os.environ.get('GROUP_IDS').split(','))
 USER_ID = int(os.environ.get('USER_ID'))
 DEVICE_MODEL_ID = os.environ.get('DEVICE_MODEL_ID')
 DEVICE_ID = os.environ.get('DEVICE_ID')
@@ -42,13 +43,9 @@ DEVICE_ID = os.environ.get('DEVICE_ID')
 update_id = None
 
 try:
-    from . import (
-        assistant_helpers,
-    )
-except SystemError:
+    from . import assistant_helpers
+except (SystemError, ImportError):
     import assistant_helpers
-
-#assistant = None
 
 
 class SampleTextAssistant(object):
@@ -70,7 +67,7 @@ class SampleTextAssistant(object):
         self.device_id = device_id
         self.conversation_state = None
         self.assistant = embedded_assistant_pb2_grpc.EmbeddedAssistantStub(
-            channel
+            channel,
         )
         self.deadline = deadline_sec
 
@@ -82,8 +79,7 @@ class SampleTextAssistant(object):
             return False
 
     def assist(self, text_query):
-        """Send a text request to the Assistant and playback the response.
-        """
+        """Send a text request to the Assistant and playback the response."""
         def iter_assist_requests():
             dialog_state_in = embedded_assistant_pb2.DialogStateIn(
                 language_code=self.language_code,
@@ -100,7 +96,7 @@ class SampleTextAssistant(object):
                 dialog_state_in=dialog_state_in,
                 device_config=embedded_assistant_pb2.DeviceConfig(
                     device_id=self.device_id,
-                    device_model_id=DEVICE_MODEL_ID,
+                    device_model_id=self.device_model_id,
                 ),
                 text_query=text_query,
             )
@@ -121,15 +117,21 @@ class SampleTextAssistant(object):
 
 
 def echo(bot, update):
-    display_text = assistant.assist(text_query=update.message.text)
-    update.message.reply_text(display_text)
+    message = update.message
+    display_text = assistant.assist(text_query=message.text)
+    if (message.chat_id not in GROUP_IDS
+            and message.from_user.id != USER_ID):
+        message.reply_text('Unauthorized')
+    elif display_text is not None:
+        update.message.reply_text(display_text)
+
 
 @click.command()
 @click.option('--api-endpoint', default=ASSISTANT_API_ENDPOINT,
               metavar='<api endpoint>', show_default=True,
               help='Address of Google Assistant API service.')
-@click.option('--credentials',
-              metavar='<credentials>', show_default=True,
+@click.option('--credentials-path',
+              metavar='<credentials_path>', show_default=True,
               default=os.path.join(click.get_app_dir('google-oauthlib-tool'),
                                    'credentials.json'),
               help='Path to read OAuth2 credentials.')
@@ -144,7 +146,7 @@ def echo(bot, update):
               help='gRPC deadline in seconds')
 
 
-def main(api_endpoint, credentials, lang, verbose,
+def main(api_endpoint, credentials_path, lang, verbose,
          grpc_deadline, *args, **kwargs):
     # Setup logging.
     logging.basicConfig(level=logging.DEBUG if verbose else logging.INFO)
@@ -158,7 +160,7 @@ def main(api_endpoint, credentials, lang, verbose,
 
     # Load OAuth 2.0 credentials.
     try:
-        with open(credentials, 'r') as f:
+        with open(credentials_path, 'r') as f:
             credentials = google.oauth2.credentials.Credentials(token=None,
                                                                 **json.load(f))
             http_request = google.auth.transport.requests.Request()
@@ -178,7 +180,8 @@ def main(api_endpoint, credentials, lang, verbose,
     logging.info('Connecting to %s', api_endpoint)
 
     global assistant
-    assistant = SampleTextAssistant(lang,
+    assistant = SampleTextAssistant(
+            lang,
             DEVICE_MODEL_ID,
             DEVICE_ID,
             grpc_channel,
