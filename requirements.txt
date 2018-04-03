@@ -1,9 +1,10 @@
-click==6.7
+click>=6.7,<7
 google-assistant-grpc==0.1.0
-google-assistant-sdk==0.4.4
-google-auth==1.4.1
-google-auth-oauthlib==0.2.0
-googleapis-common-protos==1.5.3
-grpcio==1.10.0
+google-auth-oauthlib>=0.1.0,<0.3
+urllib3[secure]>=1.21,<2
+tenacity>=4.1.0,<5
+futures>=3.1.1,<4
+pathlib2>=2.3.0,<3
 python-telegram-bot==10.0.1
 telegram==0.0.1
+google-assistant-sdk==0.4.4
