@@ -127,7 +127,7 @@ def assist(bot, update):
         if message.from_user.id not in AUTHORIZED_USER_IDS:
             message.reply_text('Unauthorized')
         else:
-            display_text = assistant.assist(text_query=message_text)
+            display_text = assistant.assist(text_query=message.text)
             message.reply_text(display_text)
     # If in a group, only reply to mentions.
     elif message.text.startswith('@%s' % bot.username):
