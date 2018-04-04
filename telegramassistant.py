@@ -162,7 +162,7 @@ def assist(bot, update):
               metavar='<api endpoint>', show_default=True,
               help='Address of Google Assistant API service.')
 @click.option('--credentials-path',
-              metavar='<credentials_path>', show_default=True,
+              metavar='<credentials path>', show_default=True,
               default=os.path.join(click.get_app_dir('google-oauthlib-tool'),
                                    'credentials.json'),
               help='Path to read OAuth2 credentials.')
