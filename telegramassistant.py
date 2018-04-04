@@ -20,16 +20,17 @@ import json
 from time import sleep
 
 import click
+from google.assistant.embedded.v1alpha2 import embedded_assistant_pb2
+from google.assistant.embedded.v1alpha2 import embedded_assistant_pb2_grpc
 import google.auth.transport.grpc
 import google.auth.transport.requests
 import google.oauth2.credentials
-from google.assistant.embedded.v1alpha2 import embedded_assistant_pb2
-from google.assistant.embedded.v1alpha2 import embedded_assistant_pb2_grpc
 import telegram
 from telegram.error import NetworkError
+from telegram.error import TelegramError
 from telegram.error import Unauthorized
-from telegram.ext import MessageHandler
 from telegram.ext import Filters
+from telegram.ext import MessageHandler
 from telegram.ext import Updater
 
 try:
@@ -41,13 +42,14 @@ except (SystemError, ImportError):
 ASSISTANT_API_ENDPOINT = 'embeddedassistant.googleapis.com'
 DEFAULT_GRPC_DEADLINE = 60 * 3 + 5
 BOT_TOKEN = os.environ.get('BOT_TOKEN')
-GROUP_IDS = list(map(int, os.environ.get('GROUP_IDS').split(',')))
-USER_IDS = list(map(int, os.environ.get('USER_ID').split(',')))
+ALLOWED_CHAT_IDS = list(
+        map(int, os.environ.get('ALLOWED_CHAT_IDS').split(','))
+        )
+AUTHORIZED_USER_IDS = list(
+        map(int, os.environ.get('AUTHORIZED_USER_IDS').split(','))
+        )
 DEVICE_MODEL_ID = os.environ.get('DEVICE_MODEL_ID')
 DEVICE_ID = os.environ.get('DEVICE_ID')
-
-
-update_id = None
 
 
 class SampleTextAssistant(object):
@@ -120,9 +122,15 @@ class SampleTextAssistant(object):
 
 def assist(bot, update):
     message = update.message
+    if message.chat.type == 'private':
+        # If user is unauthorized, return an error.
+        if message.from_user.id not in AUTHORIZED_USER_IDS:
+            message.reply_text('Unauthorized')
+        else:
+            display_text = assistant.assist(text_query=message_text)
+            message.reply_text(display_text)
     # If in a group, only reply to mentions.
-    if (message.chat.type == 'private'
-            or message.text.startswith('@%s' % bot.username)):
+    elif message.text.startswith('@%s' % bot.username):
         # Strip first word (the mention) from message text.
         message_tokens = message.text.split(' ', 1)
         if len(message_tokens) > 1:
@@ -131,9 +139,20 @@ def assist(bot, update):
             display_text = assistant.assist(text_query=message_text)
             # Verify that the message is in an authorized chat or from an
             # authorized user.
-            if (message.chat_id not in GROUP_IDS
-                    and message.from_user.id not in USER_IDS):
+            if (message.chat_id not in ALLOWED_CHAT_IDS
+                    and message.from_user.id not in AUTHORIZED_USER_IDS):
                 message.reply_text('Unauthorized')
+                should_leave_chat = True
+                # If unauthorized and no authorized users are in the chat,
+                # leave the chat.
+                for user_id in AUTHORIZED_USER_IDS:
+                    try:
+                        message.chat.get_member(user_id=user_id)
+                        should_leave_chat = False
+                    except TelegramError:
+                        pass
+                if should_leave_chat:
+                    message.chat.leave()
             elif display_text is not None:
                 update.message.reply_text(display_text)
 
@@ -162,8 +181,6 @@ def main(api_endpoint, credentials_path, lang, verbose,
          grpc_deadline, *args, **kwargs):
     # Setup logging.
     logging.basicConfig(level=logging.DEBUG if verbose else logging.INFO)
-
-    global update_id
 
     # Telegram
     """Run the bot."""
@@ -202,12 +219,6 @@ def main(api_endpoint, credentials_path, lang, verbose,
 
     updater.start_polling()
     updater.idle()
-    # get the first pending update_id, this is so we can skip over it in case
-    # we get an "Unauthorized" exception.
-    #try:
-    #    update_id = updater.get_updates()[0].update_id
-    #except IndexError:
-    #    update_id = None
 
 
 if __name__ == '__main__':
