@@ -17,34 +17,40 @@
 import os
 import logging
 import json
-import telegram
-from telegram.error import NetworkError, Unauthorized
-from telegram.ext import MessageHandler, Filters, Updater
 from time import sleep
 
 import click
+from google.assistant.embedded.v1alpha2 import embedded_assistant_pb2
+from google.assistant.embedded.v1alpha2 import embedded_assistant_pb2_grpc
 import google.auth.transport.grpc
 import google.auth.transport.requests
 import google.oauth2.credentials
-
-from google.assistant.embedded.v1alpha2 import (
-    embedded_assistant_pb2,
-    embedded_assistant_pb2_grpc
-)
-
-update_id = None
+import telegram
+from telegram.error import NetworkError
+from telegram.error import TelegramError
+from telegram.error import Unauthorized
+from telegram.ext import Filters
+from telegram.ext import MessageHandler
+from telegram.ext import Updater
 
 try:
-    from . import (
-        assistant_helpers,
-    )
-except SystemError:
+    from . import assistant_helpers
+except (SystemError, ImportError):
     import assistant_helpers
+
 
 ASSISTANT_API_ENDPOINT = 'embeddedassistant.googleapis.com'
 DEFAULT_GRPC_DEADLINE = 60 * 3 + 5
+BOT_TOKEN = os.environ.get('BOT_TOKEN')
+ALLOWED_CHAT_IDS = list(
+        map(int, os.environ.get('ALLOWED_CHAT_IDS').split(','))
+        )
+AUTHORIZED_USER_IDS = list(
+        map(int, os.environ.get('AUTHORIZED_USER_IDS').split(','))
+        )
+DEVICE_MODEL_ID = os.environ.get('DEVICE_MODEL_ID')
+DEVICE_ID = os.environ.get('DEVICE_ID')
 
-#assistant = None
 
 class SampleTextAssistant(object):
     """Sample Assistant that supports text based conversations.
@@ -65,7 +71,7 @@ class SampleTextAssistant(object):
         self.device_id = device_id
         self.conversation_state = None
         self.assistant = embedded_assistant_pb2_grpc.EmbeddedAssistantStub(
-            channel
+            channel,
         )
         self.deadline = deadline_sec
 
@@ -77,8 +83,7 @@ class SampleTextAssistant(object):
             return False
 
     def assist(self, text_query):
-        """Send a text request to the Assistant and playback the response.
-        """
+        """Send a text request to the Assistant and playback the response."""
         def iter_assist_requests():
             dialog_state_in = embedded_assistant_pb2.DialogStateIn(
                 language_code=self.language_code,
@@ -114,32 +119,53 @@ class SampleTextAssistant(object):
                 display_text = resp.dialog_state_out.supplemental_display_text
         return display_text
 
-def echo(bot, update):
-    if update.message.from_user.id != int(YOUR_ID):
-        update.message.reply_text('unauthorized')
-    else:
-        display_text = assistant.assist(text_query=update.message.text)
-        update.message.reply_text(display_text)
+
+def assist(bot, update):
+    message = update.message
+    if message.chat.type == 'private':
+        # If user is unauthorized, return an error.
+        if message.from_user.id not in AUTHORIZED_USER_IDS:
+            message.reply_text('Unauthorized')
+        else:
+            display_text = assistant.assist(text_query=message.text)
+            message.reply_text(display_text)
+    # If in a group, only reply to mentions.
+    elif message.text.startswith('@%s' % bot.username):
+        # Strip first word (the mention) from message text.
+        message_tokens = message.text.split(' ', 1)
+        if len(message_tokens) > 1:
+            message_text = message_tokens[1]
+            # Get response from Google Assistant API.
+            display_text = assistant.assist(text_query=message_text)
+            # Verify that the message is in an authorized chat or from an
+            # authorized user.
+            if (message.chat_id not in ALLOWED_CHAT_IDS
+                    and message.from_user.id not in AUTHORIZED_USER_IDS):
+                message.reply_text('Unauthorized')
+                should_leave_chat = True
+                # If unauthorized and no authorized users are in the chat,
+                # leave the chat.
+                for user_id in AUTHORIZED_USER_IDS:
+                    try:
+                        message.chat.get_member(user_id=user_id)
+                        should_leave_chat = False
+                    except TelegramError:
+                        pass
+                if should_leave_chat:
+                    message.chat.leave()
+            elif display_text is not None:
+                update.message.reply_text(display_text)
+
 
 @click.command()
 @click.option('--api-endpoint', default=ASSISTANT_API_ENDPOINT,
               metavar='<api endpoint>', show_default=True,
               help='Address of Google Assistant API service.')
-@click.option('--credentials',
-              metavar='<credentials>', show_default=True,
+@click.option('--credentials-path',
+              metavar='<credentials path>', show_default=True,
               default=os.path.join(click.get_app_dir('google-oauthlib-tool'),
                                    'credentials.json'),
               help='Path to read OAuth2 credentials.')
-@click.option('--device-model-id',
-              metavar='<device model id>',
-              help=(('Unique device model identifier, '
-                     'if not specifed, it is read from --device-config')))
-@click.option('--device-id',
-              metavar='<device id>',
-              help=(('Unique registered device instance identifier, '
-                     'if not specified, it is read from --device-config, '
-                     'if no device_config found: a new device is registered '
-                     'using a unique id and a new device config is saved')))
 @click.option('--lang', show_default=True,
               metavar='<language code>',
               default='en-US',
@@ -149,22 +175,21 @@ def echo(bot, update):
 @click.option('--grpc-deadline', default=DEFAULT_GRPC_DEADLINE,
               metavar='<grpc deadline>', show_default=True,
               help='gRPC deadline in seconds')
-def main(api_endpoint, credentials,
-         device_model_id, device_id, lang, verbose,
+
+
+def main(api_endpoint, credentials_path, lang, verbose,
          grpc_deadline, *args, **kwargs):
     # Setup logging.
     logging.basicConfig(level=logging.DEBUG if verbose else logging.INFO)
 
-    global update_id
-	
     # Telegram
     """Run the bot."""
     # Telegram Bot Authorization Token
-    updater = Updater(token='YOUR_TOKEN')
+    updater = Updater(BOT_TOKEN)
 
     # Load OAuth 2.0 credentials.
     try:
-        with open(credentials, 'r') as f:
+        with open(credentials_path, 'r') as f:
             credentials = google.oauth2.credentials.Credentials(token=None,
                                                                 **json.load(f))
             http_request = google.auth.transport.requests.Request()
@@ -175,7 +200,7 @@ def main(api_endpoint, credentials,
                       'new OAuth 2.0 credentials.')
         return
     dispatcher = updater.dispatcher
-    echo_handler = MessageHandler(Filters.text, echo)
+    echo_handler = MessageHandler(Filters.text, assist)
     dispatcher.add_handler(echo_handler)		
 
     # Create an authorized gRPC channel.
@@ -184,21 +209,17 @@ def main(api_endpoint, credentials,
     logging.info('Connecting to %s', api_endpoint)
 
     global assistant
-    assistant = SampleTextAssistant(lang, device_model_id, device_id, grpc_channel, grpc_deadline)
+    assistant = SampleTextAssistant(
+            lang,
+            DEVICE_MODEL_ID,
+            DEVICE_ID,
+            grpc_channel,
+            grpc_deadline,
+            )
 
     updater.start_polling()
     updater.idle()
-    # get the first pending update_id, this is so we can skip over it in case
-    # we get an "Unauthorized" exception.
-    #try:
-    #    update_id = updater.get_updates()[0].update_id
-    #except IndexError:
-    #    update_id = None
-				
-#def echo(bot, update):
-#    print(update.message.text)
-#    display_text = assistant.assist(text_query=update.message.text)
-#    update.message.reply_text(display_text)
+
 
 if __name__ == '__main__':
     main()
